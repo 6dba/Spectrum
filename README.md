@@ -26,7 +26,7 @@ Current supported channels:
 	ADD_EXECUTABLE(program src/main.cpp)
 	TARGET_LINK_LIBRARIES(program Spectrum) 
 
-### Creating an object:
+### Creating an object
 	#include "Spectrum.h"
 	/*...*/
     const char* filePath = "res/sine_1000Hz.wav";
