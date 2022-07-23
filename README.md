@@ -123,9 +123,6 @@ Current supported channels:
 
     /* Sampling rate of the audio file */
     fftr.getFileSampleRate();
-
-    /* The original bit depth of the sample */
-    fftr.getFileFormat();
     
     /* Duration of the audio file in seconds */
     fftr.getFileDuration();
