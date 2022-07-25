@@ -4,11 +4,10 @@ spectrum::Processing::Processing(int NFFT, const char* AUDIOFILE)
     : NFFT(NFFT), 
     FILE(AUDIOFILE) 
 {
-    if (NFFT <= 0)
+    if (NFFT <= 0 || NFFT % 2 != 0)
         this->_terminate(BAD_NFFT);
 
-    /* Real input signal - all imaginary parts are zero
-     * Putting the ith sample in frames[i]
+    /* Real input signal - all imaginary parts are zero 
      * Reading data from an audio file
      * file.samples - contains a vector of vectors,
      * which contains the frames of each channel */
@@ -17,8 +16,8 @@ spectrum::Processing::Processing(int NFFT, const char* AUDIOFILE)
     /* Dynamic range
      * With a bit depth of 16 bits from 32767 to -32768 (65536)
      * Is equal to 96.33Db
-     * We will use this value in the future to normalize the FFT values */
-    this->DYNAMICRANGE = std::abs(20.0f * log10f(1.0f / (float)std::pow(2, this->getBitDepth())));
+     * Use this value in the future to normalize the FFT values */
+    this->dynamicRange = std::abs(20.0f * log10f(1.0f / (float)std::pow(2, this->getBitDepth())));
 };
 
 template<typename v, typename sV>
@@ -84,17 +83,39 @@ spectrum::Processing::isMono() {
 
 void 
 spectrum::Processing::printSummary() {
-    return this->file.printSummary();
+    std::cout << "FFT Window size: " << this->getNFFT()
+              << "\nFrequency per bin: " << this->getFreqPerBin()
+              << "\nSample rate: " << this->getSampleRate()
+              << "\nDuration in seconds: " << this->getFileDuration()
+              << "\nFrames per channel: " << this->getFramesPerChannel()
+              << "\nTotal frames: " << this->getTotalFrames()
+              << "\nNumber of channels: " << this->getChannels()
+              << "\nBit depth: " << this->getBitDepth()
+              << std::endl;
 };
 
-spectrum::Processing::rtstorage_t 
+spectrum::Processing::storage_t 
 spectrum::Processing::getfftValues() {
-    return this->_peekValues(this->storage);
+    return this->_peekValues(this->storage, 0, this->storage.size());
 };
 
-spectrum::Processing::rtstorage_t 
+spectrum::Processing::storage_t 
 spectrum::Processing::getpfftValues() {
-    return this->_peekValues(this->pstorage);
+    return this->_peekValues(this->pstorage, 0, this->pstorage.size());
+};
+
+spectrum::Processing::storage_t 
+spectrum::Processing::getpfftValues(int channel) {
+    if (channel >= this->getChannels() || channel < 0)
+        this->_terminate(BAD_CHANNEL);
+    
+    /* Due to the fact that each channel has the same number of samples, 
+     * we calculate the number of samples per channel, 
+     * then shift along the original vector, 
+     * return the range of values of the desired channel */ 
+    const int binsPerChannel = this->pstorage.size() / this->getChannels();
+    return this->_peekValues(this->pstorage, channel * binsPerChannel,
+                                             (channel + 1) * binsPerChannel);
 };
 
 void 
@@ -149,8 +170,8 @@ spectrum::Processing::pFFT(int timeScale) {
      * (one after the other), 
      * j - iterated by frames of a particular channel */
     for (int i = 0, k = 0; i < this->getChannels(); i++) {
-        /* The more we divide one second, the more total values we have. 
-         * The final size of the array is found as the duration 
+        /* The more we divide one second, the more total values of time moments 
+         * we have. The final size of the array is found as the duration 
          * of the audio file * timeScale */
         for (int j = 0; (float)j < this->getFileDuration() * timeScale; j++,k++) { 
             
@@ -173,7 +194,7 @@ spectrum::Processing::pFFT(int timeScale) {
                     this->file.samples[i].data() + (segment * (j + 1))
             );
             
-            kiss_fftr(cfg, v.data(), this->pstorage[j].values.get());
+            kiss_fftr(cfg, v.data(), this->pstorage[k].values.get());
  
             /* FFT normalization to db */
             this->scale(
@@ -206,30 +227,30 @@ spectrum::Processing::_scaleExpression(float r, float i) {
      * Now the maximum amplitude is 0 = -96.33 + 96.33
      * 
      * Then divide by the same number, bringing all values from -inf to 1.0f, multiply by 100 */
-    return (((20.0f * log10f(std::sqrt(std::pow(r, 2.0f) + std::pow(i, 2.0f))) + (-1 * this->DYNAMICRANGE)) / this->DYNAMICRANGE)) * 100;
+    return (((20.0f * log10f(std::sqrt(std::pow(r, 2.0f) + std::pow(i, 2.0f))) + (-1 * this->dynamicRange)) / this->dynamicRange)) * 100;
 };
 
 template<typename T>
 std::vector<T> 
-spectrum::Processing::_getVector(const T* t) {
-    /* Copy to the vector the values indicated by the pointers 
-     * of the beginning and end of the array, then return this vector */
-    return std::move(std::vector<T> (t, t + (this->NFFT / 2 + 1)));
+spectrum::Processing::_getVector(const T* t, const int S) {
+    /* Copy to the std::vector the values indicated by the pointers 
+     * of the beginning and end of the array, then return this std::vector */
+    return std::move(std::vector<T> (t, t + S));
 };
 
-spectrum::Processing::rtstorage_t 
-spectrum::Processing::_peekValues(storage_t& s) {
+spectrum::Processing::storage_t 
+spectrum::Processing::_peekValues(lstorage_t& s, const int beg, const int end) {
     if (s.empty()) 
         this->_terminate(EMPTY_CONTAINER);
-    rtstorage_t r; 
+    storage_t r; 
 
-    for (int i = 0; i < s.size(); i++) {
+    for (int i = beg; i < end; i++) {
         r.push_back(Keepeth<std::vector<kiss_fft_cpx>, std::vector<float>>(
                     s[i].channel, 
                     s[i].freqPerBin,
                     s[i].time, 
-                    this->_getVector<kiss_fft_cpx>(s[i].values.get()),
-                    this->_getVector<float>(s[i].scaledValues.get())
+                    this->_getVector<kiss_fft_cpx>(s[i].values.get(), this->NFFT / 2 + 1),
+                    this->_getVector<float>(s[i].scaledValues.get(), this->NFFT / 2 + 1)
             )
         );
     }

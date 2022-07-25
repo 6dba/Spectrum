@@ -4,17 +4,15 @@
 #include "AudioFile.h"
 #include <iostream>
 #include <memory>
-#include <ostream>
 #include <cmath>
-#include <vector>
-#include <utility>
+#include <std::vector>
+#include <algorithm>
 
 #define EMPTY_CONTAINER "An empty container of the audio file spectrum, you did FFT or pFFT?\nYou may have called the wrong FFT Spectrum return method" 
-#define BAD_DURATION "The requested value exceeds the duration of the audio file"
 #define BAD_ALLOCATE "Memory resources cannot be allocated"
-#define BAD_NFFT "The size of the FFT window must be greater than 0"
+#define BAD_NFFT "A number meaning size of the FFT window must be even and greater than 0"
 #define BAD_TIMESCALE "The entered time scaling ratio should not be less than 1 or more than 1000"
-
+#define BAD_CHANNEL "The requested channel does not match the available channels of the audio file" 
 
 namespace spectrum {
 
@@ -23,32 +21,10 @@ namespace spectrum {
  * data reading, FFT implementation, normalization of the received spectrum,
  * btaining audio file metadata */
 class Processing {
-
-    /* FFT window size */
-    const int NFFT;
-
-    /* Path to the audio file */
-    const char* FILE;
     
-    /* An object representing all the information
-     * about the original audio file:
-     * Metadata
-     * Signal frames */
-    AudioFile<float> file;
-    
-    /* Dynamic range
-     *
-     * With a bit depth of 16 bits from 32767 to -32768 (65538)
-     * 
-     * Is Equal to 96.33
-     * 
-     * We will use this value in the future to normalize the FFT values */
-    float DYNAMICRANGE;
-     
     /* A structure containing FFT data */
     template <typename v, typename sV>
     struct Keepeth {
-        friend class Processing;
         /* The channel to which the conversion refers */
         int channel;
         /* The number of frequencies per spectral component */
@@ -61,46 +37,95 @@ class Processing {
          * i - the imaginary part of the spectrum */
         v values;
         /* Normalized FFT values for the current time moment */
-        sV scaledValues; 
-        private: 
-            Keepeth(int ch, float fpb, float t, v vls, sV sVls);
+        sV scaledValues;  
+            
+        Keepeth(int ch, float fpb, float t, v vls, sV sVls);
     };
-    
-    typedef std::vector<Keepeth<std::vector<kiss_fft_cpx>, std::vector<float>>> rtstorage_t;
-    typedef std::vector<Keepeth<std::unique_ptr<kiss_fft_cpx>, std::unique_ptr<kiss_fft_scalar>>> storage_t;
 
-    /* A vector storing a structure that contains FFT data for a moment in time
+public:
+    /* A data type for public use, designed to simplify interaction 
+     * and improve code readability. Serves as a storage 
+     * for getpfftValues() and getpfftValues() values.
      *
+     * Actually is std::vector, which contains a 
+     * set of structures with the corresponding data fields 
+     * of the FFT transformation:
+     *
+     * - int channel - the channel to which the conversion refers
+     * 
+     * - float freqPerBin - the number of frequencies per spectral component
+     *
+     * - float time - the time point for which the FFT was made *
+     *
+     * - std::vector<kiss_fft_cpx> values - 
+     * non-normalized FFT values for the current time moment 
+     * that contain the kiss_fft_cpx structure:
+     *
+     * r - the real part of the spectrum, 
+     * i - the imaginary part of the spectrum
+     * 
+     * The operator<< is overloaded for this structure
+     * 
+     * - std::vector<float> scaledValues - 
+     * normalized FFT values for the current time moment */
+    typedef std::vector<Keepeth<std::vector<kiss_fft_cpx>, 
+                                std::vector<float>>> storage_t;
+private:
+    typedef std::vector<Keepeth<std::unique_ptr<kiss_fft_cpx>, 
+                                std::unique_ptr<kiss_fft_scalar>>> lstorage_t; 
+     
+    /* FFT window size */
+    const int NFFT;
+
+    /* Path to the audio file */
+    const char* FILE;
+    
+    /* An object representing all the information
+     * about the original audio file:
+     *  - Metadata
+     *  - Signal frames */
+    AudioFile<float> file;
+    
+    /* Dynamic range
+     * With a bit depth of 16 bits from 32767 to -32768 (65538) 
+     * Is Equal to 96.33
+     * We will use this value in the future to normalize the FFT values */
+    float dynamicRange;
+    
+    /* A std::vector storing a structure that contains FFT data for a moment in time
      * pstorage[i].values.get() -
      * means getting a pointer to an array of spectrum values  */
-    storage_t pstorage;
+    lstorage_t pstorage;
     
-    /* A vector storing a structure that contains FFT data 
+    /* A std::vector storing a structure that contains FFT data 
      * total audio file, by channels
-     *
      * storage[i].values.get() -
      * means getting a pointer to an array of spectrum values  */
-    storage_t storage;
+    lstorage_t storage;
 
-    /* Normalization of the obtained kiss_fft spectrum to the logarithmic scale
-     * by full NFFT counts
-     *
-     * fft - pointer to an array of non-normalized spectrum
+    /* Normalization of the resulting kiss_fft_cpx spectrum 
+     * to the logarithmic scale
      * 
-     * scaled - pointer to an array of normalized spectrum values */
+     * fft - pointer to an array of non-normalized spectrum
+     * scaled - pointer to an empty array of normalized spectrum values 
+     * Arrays size is NFFT / 2 + 1 */
     void scale(kiss_fft_cpx* fft, kiss_fft_scalar* scaled);
     
     /* Formula for normalization of spectrum values */
     float _scaleExpression(float r, float i);
     
-    /* Converts arrays of T* (not)normalized spectrum, signal frames 
-     * in a vector  */
+    /* Copies an array of T* (not)normalized spectrum, signal frames 
+     * to a std::vector  
+     * S - array size */
     template<typename T>
-    std::vector<T> _getVector(const T* t);
+    std::vector<T> _getstd::vector(const T* t, const int S);
     
-    /* Copies a value from a dynamic array to a vector 
-     * in order to return it */
-    rtstorage_t _peekValues(storage_t& s);
+    /* Copies the lstorage_t containing pointers to the FFT data arrays 
+     * to the storage_t in which the FFT data is stored as a std::vector, 
+     * then returns the storage 
+     * beg - begin index
+     * end - end index (usually s.size()) */
+    storage_t _peekValues(lstorage_t& s, const int beg, const int end);
 
     /* Terminate program with exitMessage */
     void _terminate(const char* exitMessage);
@@ -132,10 +157,8 @@ public:
     int getChannels();
     
     /* Frame values of each channel of the audio file
-     * 
-     * The size of getTotalFrames() 
-     * 
-     * [i][j] - i-th channel, j-th frame*/
+     *  
+     * [i][j] - i-th channel, j-th frame */
     std::vector<std::vector<float>> getFrames();
     
     /* Bit depth of the frame */
@@ -143,63 +166,42 @@ public:
     
     bool isMono();
     
-    /* Output a summary of the audio file metadata to the console */
+    /* Output summary data about an object 
+     * and an audio file to the console */
     void printSummary();
 
     /* Values of the spectrum of each channel of the total audio file
      * 
-     * Vector that contains audio file channels,
-     * which contains a struct objects of the FFT values of the total audio file
-     *
-     * size [NFFT / 2 + 1] 
-     * 
-     * kiss_fft_cpx is a structure that contains:
-     * r - the real part of the spectrum, 
-     * i - the imaginary part of the spectrum */
-    rtstorage_t getfftValues();
+     * Contains a std::vector of structures (see spectrum::Processing::storage_t) 
+     * of the FFT values for full audio file, for each channel */
+    storage_t getfftValues();
     
     /* Values of the spectrum for every time moment 
      * of every channel of an audio file
      *
-     * A vector of objects of a structure that contains time values of the FFT 
+     * Contains a std::vector of structures (see spectrum::Processing::storage_t), 
+     * each of which is associated with a specific point in time 
+     * for which the FFT was executed 
      *
-     *
-     * size [NFFT / 2 + 1] 
-     * 
-     *
-     * std::pair<float - moment of time, 
-     *          std::vector<kiss_fft_cpx> - FFT values>
-     *
-     *
-     * For example:
-     * 
-     * i - channel, j - the ordinal number of the moment in time (just an index)
-     *
-     * [i][j].first - value of the current time moment
-     *
-     * [i][j].second - vector of the FFT values for the current time moment
-     *
-     * kiss_fft_cpx is a structure that contains:
-     * r - the real part of the spectrum, 
-     * i - the imaginary part of the spectrum */
-    rtstorage_t getpfftValues();
+     * The values for the channels are contained sequentially 
+     * (one after the other) */
+    storage_t getpfftValues();
     
-    rtstorage_t getpfftValues(int channel);
+    /* Spectrum values for each time point of the audio file channel
+     *
+     * Contains a std::vector of structures (see spectrum::Processing::storage_t), 
+     * each of which is associated with a specific point in time 
+     * for which the FFT was executed */
+    storage_t getpfftValues(int channel);
        
-    /* Performing an entire FFT audio file 
+    /* Performing FFT of the total audio file 
      * 
      * After successful execution of the method, allowed:
-     *
-     * spectrum::Processing::getfftSpectrum() - 
-     *  std::vector<std::vector<kiss_fft_cpx>> values of the non-normalized 
-     *  spectrum of each channel of the audio file
-     *
-     * spectrum::Processing::getScaledfftSpectrum() - 
-     *  std::vector<std::vector<float>> values of the normalized to db 
-     *  spectrum of each channel of the audio file */
+     * 
+     * spectrum::Processing::getfftValues() */
     void FFT();
     
-    /* Performing FFT audio file for every i-th second 
+    /* Performing FFT audio file for each time point 
      *
      * timeScale is a parameter that determines the time scaling ratio. 
      * 
@@ -211,16 +213,10 @@ public:
      * of the audio file, if timeScale = 1, then for every second
      *
      * After successful execution of the method, allowed:
-     *
-     * spectrum::Processing::getpfftSpectrum() - 
-     *  std::vector<std::vector<std::pair<float, std::vector<kiss_fft_cpx>>>> 
-     *  values of the non-normalized spectrum every time moment
-     *  of every channel of an audio file 
-     *
-     * spectrum::Processing::getScaledpfftSpectrum() - 
-     *  std::vector<std::vector<std::pair<float, std::vector<float>>>> 
-     *  values of the normalized to db spectrum every time moment
-     *  of every channel of an audio file */
+     * 
+     * spectrum::Processing::getpfftValues()
+     * 
+     * spectrum::Processing::getpfftValues(int channel) */
     void pFFT(int timeScale /* = 1 */);
     
     };

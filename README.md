@@ -2,6 +2,10 @@
 
 **Open-Source C++ library for Fast Fourier Transform (FFT) of WAV/AIFF audio files.**
 
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/6dba/Spectrum?color=purple&style=for-the-badge)
+![GitHub commits since latest release (by date) for a branch](https://img.shields.io/github/commits-since/6dba/Spectrum/latest/develop?style=for-the-badge)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/6dba/Spectrum?style=for-the-badge)
+
 Current supported formats:
 
 * WAV
@@ -14,7 +18,6 @@ Current supported channels:
 
 # Usage
 ### CMakelists.txt example:
-
 	CMAKE_MINIMUM_REQUIRED(VERSION 3.6)
 
 	PROJECT(example)
@@ -34,86 +37,91 @@ Current supported channels:
 
     spectrum::Processing fftr(NFFT, filePath);
 
-### Fourier Transform
-	/* For partial FFT of every time moment of an audio file */	
-	fftr.pFFT(int timeScale);
-    /* timeScale is a parameter that determines the time scaling ratio. 
-     * 
+### Fourier Transform	
+    /* Performing FFT audio file for each time point 
+     *
+     * timeScale is a parameter that determines the time scaling ratio. 
      * This is the value by which 1 second of the audio file is divided. 
      * For the received time value, the FFT will be performed.
      * 
      * For example: 
      * If timeScale = 10, then the FFT will be produced for every 0.1 second 
      * of the audio file, if timeScale = 1, then for every second
+     *
+     * After successful execution of the method, allowed:
+     * spectrum::Processing::getpfftValues()
+     * spectrum::Processing::getpfftValues(int channel) */
+	fftr.pFFT(int timeScale);
 	
-	/* For an entire FFT audio file */
+	/* Performing FFT of the total audio file
+     *
+     * After successful execution of the method, allowed:
+     * spectrum::Processing::getfftValues() */
 	fftr.FFT();
 
 ### Getting conversion results
-	/* For initialization conatiner of vales you may use "auto" */
-	/* kiss_fft_cpx is a structure that contains:
-         * r - the real part of the spectrum, 
-         * i - the imaginary part of the spectrum */
-	/* Size of FFT values is [NFFT / 2 + 1] */
+	/** If the FFT of the total audio file is used (FFT()) **/
 	
-	/** If the FFT of the entire audio file is used (FFT()) **/
-	
-	/* Values of the non-normalized spectrum of each channel of the audio file
+    /* Values of the spectrum of each channel of the total audio file
      * 
-     * std::vector<std::vector<kiss_fft_cpx>> 
-     * Vector that contains audio file channels, which contains a vector 
-     * of the values of the non-normalized FFT */
-	fftr.getfftSpectrum();
-	
-	/* Values of the normalized 
-     * spectrum of each channel of the audio file 
-     * 
-     * std::vector<std::vector<float>> 
-     * Vector that contains audio file channels, which contains a vector 
-     * of the values of the normalized FFT */
-	fftr.getScaledfftSpectrum();
+     * Contains a std::vector of structures (see "Storing the received values" below) 
+     * of the FFT values for full audio file, for each channel */
+    fftr.getfftValues();
 
 	/* */
 	
 	/** If the partial FFT of every second of an audio file is used (pFFT()) **/
     
-    /* Values of the non-normalized spectrum
-     * for every time moment of every channel of an audio file
+    /* Values of the spectrum for every time moment 
+     * of every channel of an audio file
      *
-     * A vector containing the channels of an audio file, 
-     * which contains a vector containing a pair of elements 
-     * of the time values of the non-normalized FFT
+     * Contains a vector of structures (see "Storing the received values" below), 
+     * each of which is associated with a specific point in time 
+     * for which the FFT was executed 
+     *
+     * The values for the channels are contained sequentially 
+     * (one after the other) */
+    fftr.getpfftValues();
+    
+    /* Spectrum values for each time point of the audio file channel
+     *
+     * Contains a vector of structures (see "Storing the received values" below), 
+     * each of which is associated with a specific point in time 
+     * for which the FFT was executed */
+    fftr.getpfftValues(int channel);
+
+### Storing the received values
+    /* A data type for public use, designed to simplify interaction 
+     * and improve code readability. Serves as a storage 
+     * for getpfftValues() and getpfftValues() values.
+     *
+     * Actually is std::vector, which contains a 
+     * set of structures with the corresponding data fields 
+     * of the FFT transformation:
+     *
+     * - int channel - the channel to which the conversion refers
+
+     * - float freqPerBin - the number of frequencies per spectral component
+     *
+     * - float time - the time point for which the FFT was made *
+     *
+     * - std::vector<kiss_fft_cpx> values - 
+     * non-normalized FFT values for the current time moment 
+     * that contain the kiss_fft_cpx structure:
+     *
+     * 	r - the real part of the spectrum, 
+     * 	i - the imaginary part of the spectrum
+     * The operator<< is overloaded for this structure
      * 
-     * std::vector<std::vector<std::pair<float, std::vector<kiss_fft_cpx>>>>
-     *
-     * std::pair<float - moment of time, 
-     *          std::vector<kiss_fft_cpx> - FFT values>
-     *
-     * For example:
-     * 
-     * i - channel, j - the ordinal number of the moment in time (just an index)
-     * [i][j].first - value of the current time moment
-     * [i][j].second - vector of FFT values for the current time moment */
-	fftr.getpfftSpectrum();
-	
-    /* Values of the normalized to db spectrum
-     * for every time moment of every channel of an audio file
-     *
-     * A vector containing the channels of an audio file, 
-     * which contains a vector containing a pair of elements 
-     * of the time values of the normalized FFT
-     *
-     * std::pair<float - moment of time, 
-     *          std::vector<float> - FFT values>
-     *
-     * For example:
-     * 
-     * i - channel, j - the ordinal number of the moment in time (just an index)
-     * [i][j].first - value of the current time moment
-     * [i][j].second - vector of the FFT values for the current time moment */
-	fftr.getScaledpfftSpectrum();
-	
-### Other useful methods
+     * - std::vector<float> scaledValues - 
+     * normalized FFT values for the current time moment */
+ 
+    typedef std::vector<Keepeth<std::vector<kiss_fft_cpx>, 
+                                std::vector<float>>> storage_t;
+ 
+    /* Or you just may use "auto" :) */
+
+### Other methods
     /* FFT window size */
     fftr.getNFFT();
     
@@ -122,69 +130,68 @@ Current supported channels:
     fftr.getFreqPerBin();
 
     /* Sampling rate of the audio file */
-    fftr.getFileSampleRate();
+    fftr.getSampleRate();
     
     /* Duration of the audio file in seconds */
     fftr.getFileDuration();
 
     /* Number of frames per audio file channel */
-    fftr.getFileFramesPerChannel();
+    fftr.getFramesPerChannel();
 
     /* Total count of frames of the audio file */
-    fftr.getFileFramesCount();
+    fftr.getTotalFrames();
 
     /* Number of channels of the audio file */
-    fftr.getFileChannels();
+    fftr.getChannels();
     
-    /* Frame values of each channel of the audio file
-     * 
-     * The size of getFileFramesCount() 
-     * 
-     * [i][j] - i-th channel, j-th frame*/
+    /* Returns a vector of vectors with a frame values 
+     * of each channel of the audio file
+     * [i][j] - i-th channel, j-th frame */
     fftr.getFrames();
     
     /* Bit depth of the frame */
-    fftr.getFileBitDepth();
+    fftr.getBitDepth();
     
     fftr.isMono();
     
-    /* Output a summary of the audio file metadata to the console */
+    /* Output summary data about an object 
+     * and an audio file to the console */
     fftr.printSummary();
 
 # Example
 	#include "Spectrum.h"
-	
+		
 	int main(int argc, char* argv[]) {
     
-	    /** Init **/
-	    spectrum::Processing p(512, "res/sine_1000Hz.wav");     
-	    /*  Doing a partial FFT, for every 1 second of audio file */
-	    p.pFFT(1); // 
-	    /* Getting the processing result on channel 0 (mono) */
-	    auto v = p.getScaledpfftSpectrum()[0];
-	    
-	    /** Export to .csv file **/ 
-	    std::ofstream fout; fout.open("sine_1000Hz.csv", std::ios::trunc);
-	
-	    fout << "channel;second;frequency;value" << std::endl;
-	    /* Iteration on a pair values in the channel */
-	    for (int i = 0; i < v.size(); i++) {
-	        /* Iteration over a vector of values in a pair */
-	        for (int j = 0; j < v[i].second.size(); j++) {
-	            /* data usage */
-	            /*   channel        second      */
-	            fout << i <<';'<< v[i].first <<';'
-	            << j * p.getFreqPerBin() <<';'<< v[i].second[j] << std::endl;
-	            /*    frequency (Hz)               FFT value               */
-	        }
-	    }
-	    fout.close();
-	    return 0;
+		/* i	nit */
+		spectrum::Processing p(1024, "res/sine_1000Hz.wav");     
+		/*  Doing a partial FFT, for every 1 second of audio file */
+		p.pFFT(1); // 
+		/* Getting the processing result of all channels */
+    		spectrum::Processing::storage_t v = p.getpfftValues();
+    		/* or you may use "auto" */
+ 
+		/** Export to .csv file **/ 
+		std::ofstream fout; fout.open("sine_1000Hz.csv", std::ios::trunc);
+
+		fout << "channel;time;frequency;value" << std::endl;
+		for (int i = 0; i < v.size(); i++) {
+	        /* Iteration over a vector of scaled values in the v object */
+	        for (int j = 0; j < v[i].scaledValues.size(); j++) {
+	            /*        channel         A moment in time              */
+	            fout << v[i].channel <<';'<< v[i].time <<';'
+	                 << j * v[i].freqPerBin <<';'<< v[i].scaledValues[j] 
+	            /*         frequency (Hz)               FFT value       */
+	                 << std::endl; 
+		        }
+		    }
+		fout.close();
+		return 0;
 	};
 ### sine_1000Hz.csv
-![Data](https://i.imgur.com/VICcWDE.png)
+![Data](https://i.imgur.com/FxIeh9H.png)
 ### Plot
-![Plot](https://i.imgur.com/QkfWuN0.png)
+![Plot](https://i.imgur.com/OHcg7jT.png)
 # Attention
 **⚠️ Undefined behavior or a long processing execution is possible with large values of the FFT window size, 
 long audio files and a high *timeScale* ratio for *pFFT()*.** 
@@ -193,7 +200,6 @@ long audio files and a high *timeScale* ratio for *pFFT()*.**
 
 # Future functionality
 * Implementation of export to .csv
-* Interface for more convenient access to the resulting data
 
 # Dependencies used
 * [AudioFile](https://github.com/adamstark/AudioFile)
