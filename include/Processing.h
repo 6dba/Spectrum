@@ -55,7 +55,7 @@ public:
      * 
      * - float freqPerBin - the number of frequencies per spectral component
      *
-     * - float time - the time point for which the FFT was made *
+     * - float time - the time point for which the FFT was made
      *
      * - std::vector<kiss_fft_cpx> values - 
      * non-normalized FFT values for the current time moment 

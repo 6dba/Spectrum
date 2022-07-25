@@ -1,10 +1,11 @@
+![Spectrum](https://i.imgur.com/LAUeqpH.jpg)
 # Spectrum
 
 **Open-Source C++ library for Fast Fourier Transform (FFT) of WAV/AIFF audio files.**
 
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/6dba/Spectrum?color=purple&style=for-the-badge)
 ![GitHub commits since latest release (by date) for a branch](https://img.shields.io/github/commits-since/6dba/Spectrum/latest/develop?style=for-the-badge)
-![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/6dba/Spectrum?style=for-the-badge)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/6dba/Spectrum?color=green&style=for-the-badge)
 
 Current supported formats:
 
@@ -103,7 +104,7 @@ Current supported channels:
 
      * - float freqPerBin - the number of frequencies per spectral component
      *
-     * - float time - the time point for which the FFT was made *
+     * - float time - the time point for which the FFT was made
      *
      * - std::vector<kiss_fft_cpx> values - 
      * non-normalized FFT values for the current time moment 
@@ -163,13 +164,13 @@ Current supported channels:
 		
 	int main(int argc, char* argv[]) {
     
-		/* i	nit */
+		/* init */
 		spectrum::Processing p(1024, "res/sine_1000Hz.wav");     
 		/*  Doing a partial FFT, for every 1 second of audio file */
-		p.pFFT(1); // 
+		p.pFFT(1);
 		/* Getting the processing result of all channels */
-    		spectrum::Processing::storage_t v = p.getpfftValues();
-    		/* or you may use "auto" */
+    	spectrum::Processing::storage_t v = p.getpfftValues();
+    	/* or you may use "auto" */
  
 		/** Export to .csv file **/ 
 		std::ofstream fout; fout.open("sine_1000Hz.csv", std::ios::trunc);
