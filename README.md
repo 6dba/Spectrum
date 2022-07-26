@@ -172,7 +172,7 @@ Current supported channels:
     	spectrum::Processing::storage_t v = p.getpfftValues();
     	/* or you may use "auto" */
  
-		/** Export to .csv file **/ 
+		/* Export to .csv file */ 
 		std::ofstream fout; fout.open("sine_1000Hz.csv", std::ios::trunc);
 
 		fout << "channel;time;frequency;value" << std::endl;
@@ -184,8 +184,8 @@ Current supported channels:
 	                 << j * v[i].freqPerBin <<';'<< v[i].scaledValues[j] 
 	            /*         frequency (Hz)               FFT value       */
 	                 << std::endl; 
-		        }
 		    }
+		}
 		fout.close();
 		return 0;
 	};
