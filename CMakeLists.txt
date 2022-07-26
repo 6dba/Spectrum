@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.6)
 
 PROJECT(Spectrum
-    VERSION 1.0.0 
+    VERSION 1.1.0 
     DESCRIPTION "Open-Source C++ library for Fast Fourier Transform (FFT) of WAV/AIFF audio files"
     HOMEPAGE_URL "https://github.com/6dba/Spectrum"
 )
