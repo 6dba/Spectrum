@@ -163,8 +163,9 @@ spectrum::Processing::pFFT(int timeScale) {
      * of the previous transformation is not equal to the current one, 
      * then we clear the storage for the new values */
     if (!this->pstorage.empty()) {
-        if (timeScale != 1 / pstorage[1].time)
+        if (timeScale != 1 / this->pstorage[1].time)
            this->pstorage.clear();
+        return;
     }
 
     /* Performing FFT for j-th moment of time 
