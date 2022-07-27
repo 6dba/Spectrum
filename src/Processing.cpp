@@ -159,6 +159,14 @@ spectrum::Processing::pFFT(int timeScale) {
     if (timeScale < 1 || timeScale > 1000 )
         this->_terminate(BAD_TIMESCALE);
     
+    /* If the storage is not empty and if the time scaling factor 
+     * of the previous transformation is not equal to the current one, 
+     * then we clear the storage for the new values */
+    if (!this->pstorage.empty()) {
+        if (timeScale != 1 / pstorage[1].time)
+           this->pstorage.clear();
+    }
+
     /* Performing FFT for j-th moment of time 
      * (a moment of time an audio file is equal 
      * to the: */
