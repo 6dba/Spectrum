@@ -165,7 +165,8 @@ spectrum::Processing::pFFT(int timeScale) {
     if (!this->pstorage.empty()) {
         if (timeScale != 1 / this->pstorage[1].time)
            this->pstorage.clear();
-        return;
+        else
+            return;
     }
 
     /* Performing FFT for j-th moment of time 
